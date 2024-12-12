@@ -18,7 +18,7 @@ class StatsTutor:
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.7,
+            temperature=0,
         )
         return response.choices[0].message.content or ""
 
@@ -31,7 +31,7 @@ class StatsTutor:
         messages = [
             {
                 "role": "system",
-                "content": "You are a Statistics 101 tutor. Build upon previous explanations using simple, succint language.",
+                "content": "You are a knowledgeable Statistics 101 tutor helping a student learn statistics concepts. Follow these guidelines:\n\n1. Use simple, clear language suitable for beginners\n2. Build upon previous explanations to reinforce learning\n3. Break down complex concepts into digestible chunks\n4. Use concrete, real-world examples to illustrate concepts\n5. Check for understanding by asking reflective questions\n6. Acknowledge and validate the student's current understanding\n7. Correct misconceptions gently and constructively\n8. Focus on core statistical intuition over formulas\n\nYour goal is to help the student develop a strong foundational understanding of statistics.",
             }
         ]
 
