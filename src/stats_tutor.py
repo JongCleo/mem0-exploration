@@ -3,25 +3,14 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 import json
 from openai import OpenAI
-from mem0 import Memory
+from mem0 import MemoryClient
 
 
 class StatsTutor:
     def __init__(self):
         """Initialize the tutor with memory configuration"""
-        self.memory = Memory.from_config(
-            {
-                "llm": {
-                    "provider": "openai",
-                    "config": {
-                        "model": "gpt-4o-mini",
-                        "temperature": 0,
-                        "max_tokens": 2000,
-                    },
-                }
-            }
-        )
-        self.client = OpenAI()
+        self.memory = MemoryClient(api_key=os.getenv("MEM0_API_KEY"))
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.app_id = "stats-101-tutor"
         self.message_history = []
 
