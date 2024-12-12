@@ -33,10 +33,10 @@ class StatsTutor:
         )
         return response.choices[0].message.content or ""
 
-    def handle_interaction(self, user_input: str, user_id: str) -> Tuple[str, Dict]:
+    def handle_interaction(self, user_input: str, user_id: str) -> str:
         """
-        Handle a single turn of conversation with the student.
-        Returns the response and metadata about the interaction.
+        Generate a response to the user (student) as a tutor would,
+        and updates the memory store as a side effect.
         """
 
         messages = [
@@ -52,30 +52,22 @@ class StatsTutor:
         messages.append({"role": "user", "content": user_input})
 
         response = self._generate_response(messages)
-
-        # Store the interaction
-        memory_content = {
-            "user_input": user_input,
-            "tutor_response": response,
-            "context": message_history,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-        metadata = {
-            "app_id": self.app_id,
-            "type": "interaction",
-            "context": message_history,
-        }
-
-        memory_id = self.memory.add(
-            json.dumps(memory_content),
-            user_id=user_id,
-            metadata=metadata,
-        )
         self.message_history.append({"role": "user", "content": user_input})
         self.message_history.append({"role": "assistant", "content": response})
 
-        return response, {"memory_id": memory_id, "metadata": metadata}
+        # Something not explicit is that mem0 will take the composite of the existing memory and the new message history
+        # and decide whether to add or update the memory.
+
+        self.memory.add(
+            self.message_history,
+            user_id=user_id,
+            app_id=self.app_id,
+            metadata={
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
+        return response
 
     def _get_conversation_context(
         self, user_id: str, current_input: str
