@@ -18,7 +18,7 @@ def learning_mode(tutor: StatsTutor) -> None:
         if user_input.lower() == "exit":
             break
 
-        response, metadata = tutor.handle_interaction(
+        response = tutor.handle_interaction(
             user_input,
             user_id=USER_ID,
         )
