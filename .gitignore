@@ -46,3 +46,6 @@ htmlcov/
 
 # Project specific
 .DS_Store
+
+# SQLite
+*.db
