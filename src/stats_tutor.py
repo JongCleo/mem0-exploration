@@ -4,6 +4,26 @@ from typing import List, Dict, Optional, Tuple, Any
 import json
 from openai import OpenAI
 from mem0 import MemoryClient
+from pydantic import BaseModel, Field
+
+
+class TutorResponse(BaseModel):
+    response: str = Field(description="The tutor's response to the student")
+    reason: str = Field(
+        description="Explanation of why this was classified as a learning request or not"
+    )
+    is_learning_request: bool = Field(
+        description="Whether the student is asking to learn or understand a concept"
+    )
+
+
+class EvaluationResponse(BaseModel):
+    is_correct: bool = Field(
+        description="Whether the student's answer demonstrates understanding"
+    )
+    feedback: str = Field(
+        description="Specific, constructive feedback about the student's answer"
+    )
 
 
 class StatsTutor:
@@ -14,24 +34,24 @@ class StatsTutor:
         self.app_id = "stats-101-tutor"
         self.message_history = []
 
-    def _generate_response(self, messages: List[Any]) -> str:
-        response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0,
-        )
-        return response.choices[0].message.content or ""
-
     def handle_interaction(self, user_input: str, user_id: str) -> str:
         """
         Generate a response to the user (student) as a tutor would,
         and updates the memory store as a side effect.
         """
-
         messages = [
             {
                 "role": "system",
-                "content": "You are a knowledgeable Statistics 101 tutor helping a student learn statistics concepts. Follow these guidelines:\n\n1. Use simple, clear language suitable for beginners\n2. Build upon previous explanations to reinforce learning\n3. Break down complex concepts into digestible chunks\n4. Use concrete, real-world examples to illustrate concepts\n5. Check for understanding by asking reflective questions\n6. Acknowledge and validate the student's current understanding\n7. Correct misconceptions gently and constructively\n8. Focus on core statistical intuition over formulas\n\nYour goal is to help the student develop a strong foundational understanding of statistics.",
+                "content": "You are a knowledgeable Statistics 101 tutor helping a student learn statistics concepts. Follow these guidelines:\n\n"
+                "1. Use simple, clear language suitable for beginners\n"
+                "2. Build upon previous explanations to reinforce learning\n"
+                "3. Break down complex concepts into digestible chunks\n"
+                "4. Use concrete, real-world examples to illustrate concepts\n"
+                "5. Check for understanding by asking reflective questions\n"
+                "6. Acknowledge and validate the student's current understanding\n"
+                "7. Correct misconceptions gently and constructively\n"
+                "8. Focus on core statistical intuition over formulas\n\n"
+                "Your goal is to help the student develop a strong foundational understanding of statistics.",
             }
         ]
 
@@ -40,49 +60,40 @@ class StatsTutor:
 
         messages.append({"role": "user", "content": user_input})
 
-        response = self._generate_response(messages)
+        response = self.client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=self.message_history,
+            temperature=0,
+            response_format=TutorResponse,
+        )
+
+        result = response.choices[0].message.parsed
+
+        if not result:
+            return ""
+
+        # Update message history with the actual conversation
         self.message_history.append({"role": "user", "content": user_input})
-        self.message_history.append({"role": "assistant", "content": response})
+        self.message_history.append({"role": "assistant", "content": result.response})
 
-        # Something not explicit is that mem0 will take the composite of the existing memory and the new message history
-        # and decide whether to add or update the memory.
-
-        self.memory.add(
-            self.message_history,
-            user_id=user_id,
-            app_id=self.app_id,
-            metadata={
-                "timestamp": datetime.now().isoformat(),
-            },
-        )
-
-        return response
-
-    def _get_conversation_context(
-        self, user_id: str, current_input: str
-    ) -> List[Dict[str, str]]:
-        """Retrieve relevant context from previous interactions"""
-        recent_memories = self.memory.search(
-            current_input,
-            user_id=user_id,
-            limit=5,
-            filter_={
-                "app_id": self.app_id,
-                "type": "interaction",
-            },
-        )
-
-        context_messages = []
-        for memory in recent_memories:
-            content = json.loads(memory["text"])
-            context_messages.extend(
-                [
-                    {"role": "user", "content": content["user_input"]},
-                    {"role": "assistant", "content": content["tutor_response"]},
-                ]
+        # We need a copy because we need to modify the contents solely to tell Mem0 to add it to memory
+        if result.is_learning_request:
+            memory_messages = self.message_history.copy()
+            last_user_msg = memory_messages[-2]["content"]
+            memory_messages[-2]["content"] = (
+                f"{last_user_msg}\n[IMPORTANT: Student is requesting to learn about this concept]"
             )
 
-        return context_messages
+            self.memory.add(
+                memory_messages,
+                user_id=user_id,
+                app_id=self.app_id,
+                metadata={
+                    "timestamp": datetime.now().isoformat(),
+                },
+            )
+
+        return result.response
 
     def get_testing_candidates(self, conversation_id: str) -> List[Dict]:
         """Get concepts that are ready for testing based on conversation history"""
