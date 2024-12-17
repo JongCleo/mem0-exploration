@@ -5,7 +5,7 @@ I wanted to take the online cookbook a step further and built a basic stats tuto
 ## Observations
 - (+) The API dashboard is easy to use and understand
 - (+) The processed memory captures the salient details of the conversation I throw at it
-- (-) Did not an answer to a simple question I asked Discord
+- (-) Did not an answer to a simple question I asked Discord (this is a prod at their community management)
 - (-) You delegate every memory decision to mem0. It decides whether something is a duplicate, or presenting contradicting information that necessitates an update or whether something is even worth adding to memory. 
 
 For this specific application, it was poor at determining what was worth adding to memory. I had to explicitly appended something like "please note xyz" "this is important to remember" to the user prompt. I would extrapolate this and guess that most contexts, the user would seldom signal this in their message - and it's on the developer to ensure their program has a good way to determine if an interaction is worth persisting.
